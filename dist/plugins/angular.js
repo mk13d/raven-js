@@ -1,10 +1,10 @@
-/*! Raven.js 3.21.0 (fbfea0f) | github.com/getsentry/raven-js */
+/*! Raven.js 3.21.0 (5a349d9) | github.com/getsentry/raven-js */
 
 /*
  * Includes TraceKit
  * https://github.com/getsentry/TraceKit
  *
- * Copyright 2017 Matt Robenolt and other contributors
+ * Copyright 2018 Matt Robenolt and other contributors
  * Released under the BSD license
  * https://github.com/getsentry/raven-js/blob/master/LICENSE
  *
@@ -24,10 +24,14 @@ var moduleName = 'ngRaven';
 
 function angularPlugin(Raven, angular) {
   angular = angular || window.angular;
-
+  var _options = {};
   if (!angular) return;
 
   function RavenProvider() {
+    this.setOptions = function(options) {
+      _options.debug = options && options.debug ? options.debug : false;
+      return this;
+    };
     this.$get = [
       '$window',
       function($window) {
@@ -37,14 +41,21 @@ function angularPlugin(Raven, angular) {
   }
 
   function ExceptionHandlerProvider($provide) {
-    $provide.decorator('$exceptionHandler', ['Raven', '$delegate', exceptionHandler]);
+    $provide.decorator('$exceptionHandler', [
+      'Raven',
+      '$delegate',
+      '$log',
+      exceptionHandler
+    ]);
   }
 
-  function exceptionHandler(R, $delegate) {
+  function exceptionHandler(R, $delegate, $log) {
     return function(ex, cause) {
-      R.captureException(ex, {
-        extra: {cause: cause}
-      });
+      if (!_options.debug) {
+        R.captureException(ex, {extra: {cause: cause}});
+      } else {
+        $log.error('Raven: Exception ', exception, cause);
+      }
       $delegate(ex, cause);
     };
   }
@@ -124,6 +135,10 @@ function isFunction(what) {
   return typeof what === 'function';
 }
 
+function isPlainObject(what) {
+  return Object.prototype.toString.call(what) === '[object Object]';
+}
+
 function isString(what) {
   return Object.prototype.toString.call(what) === '[object String]';
 }
@@ -133,6 +148,8 @@ function isArray(what) {
 }
 
 function isEmptyObject(what) {
+  if (!isPlainObject(what)) return false;
+
   for (var _ in what) {
     if (what.hasOwnProperty(_)) {
       return false;
@@ -487,6 +504,7 @@ module.exports = {
   isErrorEvent: isErrorEvent,
   isUndefined: isUndefined,
   isFunction: isFunction,
+  isPlainObject: isPlainObject,
   isString: isString,
   isArray: isArray,
   isEmptyObject: isEmptyObject,

@@ -11,10 +11,14 @@ var moduleName = 'ngRaven';
 
 function angularPlugin(Raven, angular) {
   angular = angular || window.angular;
-
+  var _options = {};
   if (!angular) return;
 
   function RavenProvider() {
+    this.setOptions = function(options) {
+      _options.debug = options && options.debug ? options.debug : false;
+      return this;
+    };
     this.$get = [
       '$window',
       function($window) {
@@ -24,14 +28,21 @@ function angularPlugin(Raven, angular) {
   }
 
   function ExceptionHandlerProvider($provide) {
-    $provide.decorator('$exceptionHandler', ['Raven', '$delegate', exceptionHandler]);
+    $provide.decorator('$exceptionHandler', [
+      'Raven',
+      '$delegate',
+      '$log',
+      exceptionHandler
+    ]);
   }
 
-  function exceptionHandler(R, $delegate) {
+  function exceptionHandler(R, $delegate, $log) {
     return function(ex, cause) {
-      R.captureException(ex, {
-        extra: {cause: cause}
-      });
+      if (!_options.debug) {
+        R.captureException(ex, {extra: {cause: cause}});
+      } else {
+        $log.error('Raven: Exception ', exception, cause);
+      }
       $delegate(ex, cause);
     };
   }
